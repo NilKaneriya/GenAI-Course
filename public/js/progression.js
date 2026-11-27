@@ -22,6 +22,19 @@ export const bossRequired = (s, level) => Boolean(level.boss) && s.settings.requ
 export const bossWon = (s, lid) => Boolean(s.bosses[lid]?.wonAt);
 export const bossBattleWon = (s, lid) => (s.bosses[lid]?.attempts || []).some((a) => a.won);
 export const challengePassed = (s, cid) => Boolean(s.challenges[cid]?.passedAt);
+export const arcadeWon = (s, key, kind) => Boolean(s.arcade?.[`${key}:${kind}`]);
+
+/** Up to 3 stars per lesson: flashcards mastered, practice right first time, lesson complete. Derived, never stored. */
+export function lessonStars(s, mid) {
+  const m = getMission(mid);
+  if (!m) return { stars: 0, parts: [] };
+  const parts = [
+    { key: 'cards', label: 'Master the flashcards', got: arcadeWon(s, mid, 'cards') || !(m.terms || []).length },
+    { key: 'perfect', label: 'Practice right on the first try', got: (m.check || []).length > 0 && m.check.every((q) => s.practice[q.id]?.firstCorrect) },
+    { key: 'done', label: 'Complete the lesson', got: isMissionComplete(s, mid) },
+  ];
+  return { stars: parts.filter((p) => p.got).length, parts };
+}
 
 export function isLevelComplete(s, level) {
   if (missionsDone(s, level) < level.missions.length) return false;
@@ -233,7 +246,7 @@ export function weakTopics(s, limit = 4) {
 export function streak(s) {
   const days = new Set(Object.keys(s.activity).filter((d) => {
     const a = s.activity[d];
-    return a.lessons || a.practice || a.runs || a.tests || a.reviews || a.visuals || a.mentor;
+    return a.lessons || a.practice || a.runs || a.tests || a.reviews || a.visuals || a.mentor || a.cards || a.games;
   }));
   // Current streak: consecutive active days ending today or yesterday; one missed day is forgiven (grace day).
   let count = 0, gapUsed = false, i = days.has(dayKey()) ? 0 : 1;
@@ -267,7 +280,8 @@ export function earnedBadgeIds(s) {
   const bosses = LEVELS.filter((l) => bossWon(s, l.id)).length;
   const comeback = LEVELS.some((l) => { const at = testAttempts(s, l.id); const i = at.findIndex((a) => a.passed); return i > 0; });
   const perfect = LEVELS.some((l) => testAttempts(s, l.id).some((a) => a.score === 100));
-  const ctx = { lessons: c.lessons, challenges, bosses, levels: c.levelsCleared, quests: s.questsCompleted || 0, mentor: s.mentor.asked || 0 };
+  const arcade = Object.keys(s.arcade || {});
+  const ctx = { lessons: c.lessons, challenges, bosses, levels: c.levelsCleared, quests: s.questsCompleted || 0, mentor: s.mentor.asked || 0, cards: arcade.filter((k) => k.endsWith(':cards')).length, games: arcade.filter((k) => k.endsWith(':game')).length };
   return BADGES.filter((b) => {
     if (b.rule.startsWith('level:')) return isLevelComplete(s, getLevel(b.rule.slice(6)));
     if (b.rule === 'comeback') return comeback;

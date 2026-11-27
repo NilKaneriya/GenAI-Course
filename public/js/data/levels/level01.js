@@ -2,12 +2,13 @@
 export default {
   id: 'l1',
   num: 1,
-  title: 'Generative AI Foundations',
+  title: 'AI Basics & GenAI Foundations',
   region: 'Spark Plains',
-  tagline: 'Where every journey starts: what a model really does when it "writes".',
+  tagline: 'Start from zero: what AI, GenAI and agentic AI are, then what a model really does when it "writes".',
   overview:
-    'Before writing code, you need a precise mental model of what generative AI is and is not. This level explains how language models turn a prompt into text one token at a time, why context windows matter, how training differs from inference, and where GenAI careers fit.',
+    'No experience needed. You start with the big picture (how AI, machine learning, generative AI and agentic AI differ), then build a precise mental model of how language models turn a prompt into text one token at a time, why context windows matter, how training differs from inference, and where GenAI careers fit.',
   objectives: [
+    'Tell AI, machine learning, generative AI and agentic AI apart with everyday examples',
     'Explain next-token prediction in plain language',
     'Estimate token counts and reason about context-window limits',
     'Distinguish training from inference and name what happens in each',
@@ -15,6 +16,142 @@ export default {
   ],
   skills: ['foundations', 'llms', 'career'],
   missions: [
+    // The two beginner missions come first in the array (their ids are new, so existing progress is untouched).
+    {
+      id: 'l1m5',
+      title: 'What is AI? The AI family tree',
+      goal: 'Tell AI, machine learning, deep learning and generative AI apart with one everyday example each.',
+      minutes: 8,
+      skill: 'foundations',
+      visual: 'aiFamily',
+      visualCaption: 'Tap each ring to see what lives there, then play the sorting game: put each everyday app in the right family.',
+      keyIdea: 'AI is the big umbrella. Machine learning sits inside it, deep learning inside that, and generative AI is the part of deep learning that **creates** new things.',
+      analogy: 'Think of nesting dolls. AI is the biggest doll. Machine learning fits inside it, deep learning inside that, and generative AI is the smallest doll — the one that can write, draw and compose.',
+      sections: [
+        {
+          h: 'AI: the big umbrella',
+          body:
+            '**Artificial intelligence (AI)** is any computer system doing something that normally needs human smarts: recognising faces, recommending songs, playing chess.\n\nOld-school AI followed **hand-written rules** ("if temperature < 18, turn on heat"). Most modern AI **learns** instead.',
+        },
+        {
+          h: 'Machine learning: learning from examples',
+          body:
+            'With **machine learning (ML)** you do not write the rules. You show the computer thousands of examples — emails labelled *spam* or *not spam* — and it finds the pattern itself.\n\nMost ML **predicts or sorts**: spam or not, fraud or not, which show you will like next.',
+        },
+        {
+          h: 'Deep learning and generative AI',
+          body:
+            '**Deep learning** is ML with many-layered neural networks. It is great at messy data like photos, speech and language.\n\n**Generative AI** is deep learning that **creates new content**: text (ChatGPT, Claude), images, music, code. Instead of choosing between labels, it produces something that did not exist before.',
+        },
+      ],
+      terms: [
+        { term: 'Artificial intelligence (AI)', def: 'Computer systems that perform tasks that normally need human intelligence.' },
+        { term: 'Rule-based system', def: 'AI that follows rules written by people, not patterns learned from data.' },
+        { term: 'Machine learning (ML)', def: 'AI that learns patterns from examples instead of following hand-written rules.' },
+        { term: 'Deep learning', def: 'Machine learning that uses neural networks with many layers; strong on images, audio and language.' },
+        { term: 'Generative AI', def: 'AI that creates new content — text, images, audio or code — rather than only predicting a label.' },
+      ],
+      example: null,
+      check: [
+        {
+          id: 'l1m5-p1', type: 'mc',
+          q: 'Your email app moves junk mail into a Spam folder by itself. Which describes it best?',
+          options: ['Generative AI writing new emails', 'Machine learning sorting emails based on learned patterns', 'An AI agent replying for you', 'Not AI at all'],
+          answer: 1,
+          explain: 'A spam filter learned from many labelled emails and now sorts new ones — classic machine learning. It predicts a label; it does not create content.',
+          topic: 'l1m5',
+        },
+        {
+          id: 'l1m5-p2', type: 'mc',
+          q: 'Which of these is generative AI?',
+          options: [
+            'A thermostat that switches on below 18°C',
+            'A model that writes a birthday poem from a one-line request',
+            'A bank system that flags an unusual card payment',
+            'A spreadsheet that adds up a column',
+          ],
+          answer: 1,
+          explain: 'Writing a brand-new poem is creating content — that is generative AI. The fraud flag is predictive ML, the thermostat is a simple rule, and the spreadsheet is ordinary software.',
+          topic: 'l1m5',
+        },
+      ],
+      challengeId: null,
+    },
+    {
+      id: 'l1m6',
+      title: 'GenAI vs agentic AI: from answering to doing',
+      goal: 'Explain the difference between traditional AI, generative AI and agentic AI, and describe the agent loop.',
+      minutes: 9,
+      skill: 'foundations',
+      visual: 'aiCompare',
+      visualCaption: 'Pick a task and compare how each kind of AI handles it. Then press "Next step" to watch an agent loop: think, act with a tool, observe, repeat.',
+      keyIdea: 'Generative AI **answers**. Agentic AI **acts**: it plans steps, uses tools, checks the results and keeps going until the goal is done.',
+      analogy: 'Generative AI is a brilliant friend who tells you how to book a flight. Agentic AI is an assistant who opens the airline site, compares prices, books the seat and emails you the ticket — checking with you before paying.',
+      sections: [
+        {
+          h: 'Three kinds of AI, one task',
+          body:
+            'Task: *"Sort out dinner on Friday."*\n\n- **Traditional (predictive) AI** ranks restaurants you will probably like.\n- **Generative AI** writes a friendly message to invite your friends.\n- **Agentic AI** checks your calendar, finds a free table, books it and sends the invites.',
+        },
+        {
+          h: 'The agent loop',
+          body:
+            'An agent repeats a simple loop until the goal is met:\n\n1. **Goal** — what you asked for.\n2. **Think** — the LLM plans the next step.\n3. **Act** — it calls a tool (search, calendar, email).\n4. **Observe** — it reads the tool result.\n5. **Repeat or finish.**\n\nThe LLM is the *brain*; tools are its *hands*.',
+        },
+        {
+          h: 'Power comes with risk',
+          body:
+            'Agents save lots of work, but they can also take the **wrong action**. Good agents have limits: they ask a human before risky steps (paying, deleting, sending), and they log what they did. You will build a safe agent yourself in Level 8.',
+        },
+      ],
+      terms: [
+        { term: 'Predictive AI', def: 'AI that predicts or classifies — a score, a label, a ranking — without creating new content.' },
+        { term: 'Agentic AI', def: 'AI that pursues a goal by planning steps and taking actions with tools, not just answering.' },
+        { term: 'AI agent', def: 'A system where an LLM decides which tool to use next, observes the result, and loops until done.' },
+        { term: 'Tool', def: 'An action an agent can call, such as web search, a calculator, a calendar or sending an email.' },
+        { term: 'Human in the loop', def: 'A person reviews or approves important steps before the AI carries them out.' },
+      ],
+      example: {
+        title: 'An agent loop, step by step',
+        lang: 'text',
+        code:
+          'Goal:    Book dinner for 4 on Friday\nThink:   I need to know when everyone is free\nAct:     calendar.find_free_time("Friday")   -> 19:00\nThink:   Now find an Italian place with a table\nAct:     restaurants.search("italian", 4, "19:00") -> Luigi\'s\nThink:   Booking costs a deposit — ask the human first\nAsk:     "Book Luigi\'s at 19:00 for a 10 deposit?"  -> yes\nAct:     restaurants.book("Luigi\'s", 4, "19:00")  -> confirmed\nFinish:  "Booked! Invites sent to your 3 friends."',
+        note: 'Notice the loop: think → act → observe, again and again. And notice the agent pauses for approval before spending money.',
+      },
+      check: [
+        {
+          id: 'l1m6-p1', type: 'mc',
+          q: 'You paste an article and ask the AI "Summarize this in 3 bullets." It writes the bullets. What kind of AI is that?',
+          options: ['Traditional predictive AI', 'Generative AI', 'Agentic AI', 'A rule-based system'],
+          answer: 1,
+          explain: 'It created new text in response to a request, and took no actions in the world — that is generative AI.',
+          topic: 'l1m6',
+        },
+        {
+          id: 'l1m6-p2', type: 'mc',
+          q: 'Which is the clearest sign that a system is agentic?',
+          options: [
+            'It writes very fluent text',
+            'It plans steps and uses tools to complete a goal on its own',
+            'It was trained on a huge amount of data',
+            'It answers in many languages',
+          ],
+          answer: 1,
+          explain: 'Fluency and big training data describe any modern LLM. Being agentic means planning and acting with tools in a loop until the goal is reached.',
+          topic: 'l1m6',
+        },
+        {
+          id: 'l1m6-p3', type: 'short',
+          q: 'In one sentence: what is the difference between generative AI and agentic AI?',
+          keywords: [['create', 'generate', 'write', 'answer', 'content', 'text'], ['act', 'action', 'tool', 'task', 'plan', 'step', 'does', 'doing']],
+          min: 2,
+          sample: 'Generative AI creates content like text when you ask, while agentic AI takes actions, planning steps and using tools to finish a task.',
+          explain: 'A good answer contrasts creating/answering (GenAI) with acting/using tools/planning (agentic AI).',
+          topic: 'l1m6',
+        },
+      ],
+      challengeId: null,
+    },
     {
       id: 'l1m1',
       title: 'What generative AI actually does',
@@ -379,6 +516,8 @@ export default {
   },
   boss: null,
   review: [
+    { missionId: 'l1m5', tip: 'Replay the sorting game until you can place every app in its AI family on the first try.' },
+    { missionId: 'l1m6', tip: 'Step through the agent loop visual and name the tool used in each "Act" step.' },
     { missionId: 'l1m1', tip: 'Replay the prompt-flow visual at temperatures 0, 0.7 and 1.5 and describe what changes.' },
     { missionId: 'l1m2', tip: 'Re-read the token budget example and redo the token budget challenge.' },
     { missionId: 'l1m3', tip: 'Toggle the training/inference visual and say aloud which arrows exist in each mode.' },

@@ -27,6 +27,14 @@ export function progressContext(s) {
   };
 }
 
+/** Page context for the live backend: adds a compact summary of the lesson being viewed. */
+function pageContext(ctx = {}) {
+  const m = ctx.missionId ? getMission(ctx.missionId) : null;
+  if (!m) return ctx;
+  return { ...ctx, lesson: { title: m.title, goal: m.goal, keyIdea: m.keyIdea || null, analogy: m.analogy || null, terms: (m.terms || []).map((t) => `${t.term}: ${t.def}`), sections: m.sections.map((x) => x.h) },
+    instructions: 'The learner is on this lesson. Prefer short answers, simple words, an everyday analogy, and one quick check question. Beginners: avoid jargon.' };
+}
+
 // ---------- backend detection ----------
 let backend = null; // null = unknown, false = simulated, { provider } = live
 export async function detectBackend() {
@@ -46,7 +54,7 @@ export async function askMentor(s, text, history, context = {}) {
       const res = await fetch(CONFIG.mentorEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: history.slice(-12).map((m) => ({ role: m.role, text: m.text })), progress: progressContext(s), page: context }),
+        body: JSON.stringify({ message: text, history: history.slice(-12).map((m) => ({ role: m.role, text: m.text })), progress: progressContext(s), page: pageContext(context) }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -101,6 +109,13 @@ export function simulate(s, raw, ctx = {}) {
     const used = s.challenges[c.id]?.hintsUsed || 0;
     const hint = c.hints[Math.min(used, c.hints.length - 1)];
     return `Here’s a nudge for **${c.title}** (I won’t give the full solution):\n\n- ${hint}\n- Re-read the task and list the inputs and the exact value each function must return.\n- Run your code and compare *got* vs *expected* for the first failing test — the difference usually tells you what to change.\n\nThe lesson ${link(`#/lesson/${c.missionId}`, getMission(c.missionId)?.title || 'for this challenge')} has the background.`;
+  }
+
+  // Lesson-aware help: the learner is looking at a lesson.
+  const lesson = ctx.missionId ? getMission(ctx.missionId) : null;
+  if (lesson) {
+    const r = lessonReply(s, lesson, t);
+    if (r) return r;
   }
 
   if (has(t, 'hint', 'answer to', 'solution')) {
@@ -171,6 +186,12 @@ export function simulate(s, raw, ctx = {}) {
     return `Hi ${s.profile.name}! I can explain concepts, give hints, review your tests, and plan your next session. You’re on **Level ${pc.currentLevel.num}: ${pc.currentLevel.title}**. What would you like to do?`;
   }
 
+  // "X vs Y" / "difference between X and Y" — compare two course concepts side by side.
+  if (has(t, ' vs', 'versus', 'difference', 'differ', 'compare', 'compared')) {
+    const r = compareConcepts(t);
+    if (r) return r;
+  }
+
   // Concept explanation from curriculum
   const hit = findConcept(t);
   if (hit) {
@@ -182,6 +203,126 @@ export function simulate(s, raw, ctx = {}) {
   }
 
   return `I’m not sure I understood that. In this simulated mode I can:\n\n- explain GenAI terms from the course (try "what is a context window?")\n- summarize your progress or explain your charts\n- show where you’re struggling and what to study next\n- explain the answers you missed on a test\n- give hints on a coding challenge (open it in the Playground first)\n\nConnect a real AI backend (see README) for open-ended conversation.`;
+}
+
+// ---------- comparisons ----------
+const ALIASES = [
+  [/\bgen ?ai\b|\bgenerative\b(?! ai)/g, 'generative ai'],
+  [/\bagentic\b(?! ai)|\bagents?\b(?! ai)/g, 'agentic ai'],
+  [/\bml\b/g, 'machine learning'],
+  [/\bdl\b/g, 'deep learning'],
+  [/\bllms?\b/g, 'llm'],
+  [/\bpredictive\b(?! ai)|\btraditional ai\b/g, 'predictive ai'],
+];
+const KIND_NOTES = {
+  'artificial intelligence': 'the big umbrella', 'machine learning': 'learns patterns to predict or sort', 'deep learning': 'many-layered neural networks',
+  'generative ai': 'creates new content, then stops', 'agentic ai': 'plans and acts with tools until the goal is done', 'predictive ai': 'outputs a score, label or ranking',
+};
+function compareConcepts(raw) {
+  TERMS = TERMS || termIndex();
+  let t = ` ${raw} `;
+  for (const [re, rep] of ALIASES) t = t.replace(re, rep);
+  t = t.replace(/\bai\b(?![a-z])/g, (m, i) => (/(generative|agentic|predictive) $/.test(t.slice(0, i)) ? m : 'artificial intelligence'));
+  const found = [];
+  for (const e of TERMS) {
+    if (e.isTitle) continue;
+    const key = e.key.replace(/\s*\(.*\)$/, '');
+    const at = t.indexOf(key);
+    if (at >= 0 && !found.some((f) => f.key === key || f.key.includes(key) || key.includes(f.key))) found.push({ ...e, key, at });
+  }
+  if (found.length < 2) return null;
+  const [a, b] = found.sort((x, y) => x.at - y.at).slice(0, 2);
+  const row = (e) => `- **${e.term}**${KIND_NOTES[e.key] ? ` — *${KIND_NOTES[e.key]}*` : ''}\n  ${e.def}\n  Lesson: ${link(`#/lesson/${e.mission.id}`, e.mission.title)}`;
+  const tip = a.mission.analogy && a.mission.id === b.mission.id ? `\n\n**Picture it:** ${a.mission.analogy}` : '';
+  return `⚖️ **${a.term} vs ${b.term}**\n\n${row(a)}\n${row(b)}${tip}\n\n**Quick test:** ask *"does it just produce an answer, or does it go and do things?"* — that question separates most AI types.`;
+}
+
+// ---------- lesson coach (simulated) ----------
+let pendingQuiz = null; // { qid, missionId } — the last question the mentor asked, graded on the next reply
+const LETTERS = ['a', 'b', 'c', 'd', 'e'];
+const termLines = (m, n = 3) => (m.terms || []).slice(0, n).map((x) => `- **${x.term}** — ${x.def}`).join('\n');
+const plain = (x) => String(x || '').replace(/\*\*/g, '');
+
+function lessonReply(s, m, t) {
+  // Grade a reply to the mentor's own quiz question.
+  if (pendingQuiz && pendingQuiz.missionId === m.id) {
+    const q = getQuestion(pendingQuiz.qid);
+    const letter = t.replace(/[^a-e]/g, '').slice(0, 1);
+    const byLetter = /^\(?[a-e]\)?[.)]?$/.test(t.trim()) || /^(option|answer|it'?s|i think)\s*\(?[a-e]\b/.test(t);
+    if (q && byLetter) {
+      pendingQuiz = null;
+      const pick = LETTERS.indexOf(letter);
+      const ok = pick === q.answer;
+      return `${ok ? '✅ **Correct!**' : `❌ **Not quite** — the answer is **${LETTERS[q.answer].toUpperCase()}. ${q.options[q.answer]}**.`}
+
+${q.explain}
+
+Want another? Say **"quiz me"**.`;
+    }
+  }
+  if (has(t, 'quiz me', 'test me', 'question me', 'another question', 'quiz')) {
+    const pool = (m.check || []).filter((q) => q.type === 'mc');
+    if (!pool.length) return null;
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    pendingQuiz = { qid: q.id, missionId: m.id };
+    return `🎯 **Quick quiz — ${m.title}**
+
+${q.q}
+
+${q.options.map((o, i) => `- **${LETTERS[i].toUpperCase()}.** ${o}`).join('\n')}
+
+Reply with just the letter (A–${LETTERS[q.options.length - 1].toUpperCase()}).`;
+  }
+  if (has(t, 'analogy', 'compare it to', 'like what', 'metaphor')) {
+    return m.analogy
+      ? `🪆 **Analogy for "${m.title}"**
+
+${m.analogy}
+
+Then check yourself: ${plain(m.keyIdea || m.goal)}`
+      : `Here's a way to picture **${m.title}**: think of the key terms as parts of one machine —
+
+${termLines(m)}
+
+Each part does one job; the lesson shows how they fit together. Try the flashcards to lock them in.`;
+  }
+  if (has(t, 'example', 'real world', 'real-world', 'in practice', 'use case')) {
+    const ex = m.example;
+    return ex
+      ? `🌍 **Real-world example: ${ex.title}**
+
+${ex.note || ''}
+
+Open **“${ex.title}”** in the Story stage of this lesson to see it step by step.`
+      : `🌍 **Where you meet this:** ${plain(m.sections[0]?.body.split('\n')[0])}
+
+The interactive visual at the top of the lesson lets you try it yourself.`;
+  }
+  if (has(t, 'simpl', 'eli5', 'explain this', 'explain the lesson', 'easy words', 'plain', 'confused', "don't get", 'dont get', 'what does this lesson')) {
+    const part = m.sections.find((x) => t.includes(x.h.toLowerCase()));
+    if (part) return `💡 **${part.h}, simply:**
+
+${plain(part.body.split('\n\n')[0])}
+
+${m.analogy ? `**Analogy:** ${m.analogy}
+
+` : ''}Still fuzzy? Ask me about one word, e.g. "what is ${(m.terms?.[0]?.term || 'a token').toLowerCase()}?"`;
+    return `💡 **${m.title} — the simple version**
+
+${plain(m.keyIdea || m.goal)}
+
+${m.analogy ? `**Picture it like this:** ${m.analogy}
+
+` : ''}**3 words to know:**
+${termLines(m)}
+
+Next: flip the flashcards, then say **"quiz me"** and I'll test you.`;
+  }
+  return null;
+}
+
+export function suggestionsFor(ctx = {}) {
+  return ctx.missionId ? ['Explain this lesson simply', 'Give me an analogy', 'Quiz me on this lesson', 'Show me a real-world example', 'What should I study next?', 'Summarize my progress'] : SUGGESTIONS;
 }
 
 export const SUGGESTIONS = ['Summarize my progress', 'Where am I struggling?', 'What should I study next?', 'Explain my last test', 'Make me a study plan', 'What is a context window?', 'Explain my progress charts', 'How do I unlock the next level?'];

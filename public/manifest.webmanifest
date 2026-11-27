@@ -1,0 +1,13 @@
+{
+  "name": "GenAI Quest",
+  "short_name": "GenAI Quest",
+  "description": "A game-based Generative AI learning path from beginner to job-ready.",
+  "start_url": "./#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#1e1b4b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

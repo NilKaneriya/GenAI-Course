@@ -19,6 +19,14 @@ Open http://localhost:5173. Progress is saved in your browser, so a refresh or r
 - `npm run dev` restarts the server when `server.js` changes. Front-end files are served fresh on every reload.
 - `npm run check` validates all curriculum content (schema, answer keys, short-answer grading, and that every coding-challenge solution passes its own tests).
 
+## Deploy (phone access)
+
+The app is a static site in `public/`, so it deploys to Vercel as-is (`vercel.json` serves `public/` and runs
+`npm run check` as the build, so broken content fails the deploy). Either import the GitHub repo at
+vercel.com/new, or run `npx vercel --prod` after `npx vercel login`. On Vercel the mentor runs in
+simulated mode (the `/api/mentor` proxy lives in `server.js`, which Vercel does not run). On a phone, use
+**Add to Home Screen** to install it like an app; progress is saved per browser.
+
 ## What's live and what's simulated
 
 | Feature | Status |
@@ -71,7 +79,7 @@ public/js/
   seed.js                    Sample learner data (generated with the same rules)
   mentor.js                  Progress context, simulated mentor, real-backend client
   ui.js                      DOM helper, markdown-lite, syntax highlighter, icons, toasts, modal
-  components/                question (grading), charts, visuals (13 interactive explainers),
+  components/                question (grading), charts, visuals (15 interactive explainers), learnKit (lesson stages),
                              editor, runner (sandboxed JS worker)
   views/                     dashboard, map, level, lesson, test, boss, playground, report,
                              settings, mentorPanel

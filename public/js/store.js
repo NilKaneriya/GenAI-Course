@@ -28,6 +28,7 @@ export function emptyState() {
     quests: {},
     questsCompleted: 0,
     mentor: { messages: [], asked: 0 },
+    arcade: {},          // `${missionId}:cards` / `${gameKey}:game` -> ISO date won (lesson mini-games)
     lastMission: null,
   };
 }
@@ -235,6 +236,18 @@ export function saveDraft(cid, code) {
   persist();
 }
 export function playgroundRun() { commit((s) => bump(s, 'runs')); }
+
+/** Lesson mini-game won (flashcard deck mastered, sorting game, ...). XP is awarded once per key. */
+export function arcadeWin(key, kind, label) {
+  const id = `${key}:${kind}`;
+  if (state.arcade?.[id]) return false;
+  commit((s, { award }) => {
+    s.arcade = { ...(s.arcade || {}), [id]: new Date().toISOString() };
+    award(kind === 'cards' ? XP.cards : XP.game, label, 'game');
+    bump(s, kind === 'cards' ? 'cards' : 'games');
+  });
+  return true;
+}
 
 let visualBumped = new Set();
 export function visualUsed(key) {

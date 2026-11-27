@@ -1,7 +1,7 @@
 // Interactive visual explanations used inside lessons. Each returns a DOM element.
 // All numbers are small teaching models, labelled as such — not outputs of a real LLM.
 import { h, icon, reducedMotion } from '../ui.js';
-import { visualUsed } from '../store.js';
+import { visualUsed, arcadeWin } from '../store.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const s = (tag, attrs = {}, ...kids) => {
@@ -454,7 +454,189 @@ function streaming(caption) {
     h('p.small.muted', 'Total generation time is the same; streaming improves perceived latency (time to first token). Simulated timings.'));
 }
 
-const REGISTRY = { promptFlow, tokens, trainInfer, gradient, nnLayers, attention, embeddings, vectorSearch, ragPipeline, toolCalling, structuredOutput, evalCheck, streaming };
+// ---------------------------------------------------------------- sortGame (shared mini-game)
+// Sort each item into a bucket. Combo counter for consecutive right answers; winning awards XP once.
+function sortGame(key, title, buckets, items, winAt) {
+  let order = [], i = 0, score = 0, combo = 0, bestCombo = 0, answered = false;
+  const card = h('div.sg-card', { 'aria-live': 'polite' });
+  const hud = h('div.sg-hud');
+  const btns = h('div.sg-buckets');
+  const feedback = h('div.sg-feedback', { 'aria-live': 'polite' });
+  const start = () => {
+    order = items.map((x) => ({ x, r: Math.random() })).sort((a, b) => a.r - b.r).map((o) => o.x);
+    i = 0; score = 0; combo = 0; bestCombo = 0; answered = false; show();
+  };
+  const renderHud = () => hud.replaceChildren(
+    h('span.sg-stat', icon('target', 14), `${Math.min(i + 1, order.length)}/${order.length}`),
+    h('span.sg-stat', icon('star', 14), `${score} pts`),
+    h(`span.sg-stat.sg-combo${combo >= 2 ? '.hot' : ''}`, icon('bolt', 14), `Combo ×${combo}`),
+    h('span.sg-track', order.map((_, k) => h(`i${k < i ? '.done' : k === i ? '.now' : ''}`))));
+  const show = () => {
+    renderHud();
+    feedback.replaceChildren();
+    if (i >= order.length) {
+      const won = score >= winAt;
+      const fresh = won && arcadeWin(key, 'game', `Mini-game won: ${title}`);
+      card.replaceChildren(h('div.sg-end',
+        h('div.sg-trophy', icon(won ? 'trophy' : 'rotate', 30)),
+        h('strong', won ? 'You win!' : 'So close!'),
+        h('p', `${score} of ${order.length} correct · best combo ×${bestCombo}`),
+        h('p.small.muted', won ? (fresh ? 'Mini-game XP added to your total.' : 'Already won before. Replay any time to practise.') : `Get ${winAt} or more right to win XP.`)));
+      btns.replaceChildren(h('button.btn.btn-small.clickable', { type: 'button', onclick: start }, icon('rotate', 16), 'Play again'));
+      return;
+    }
+    answered = false;
+    const it = order[i];
+    card.replaceChildren(h('span.sg-label', 'Where does it go?'), h('p.sg-item', it.text));
+    btns.replaceChildren(...buckets.map((b, bi) => h(`button.sg-bucket.b${bi}.clickable`, { type: 'button', onclick: () => pick(bi) }, h('span.sg-ic', icon(b.icon, 18)), b.name)));
+  };
+  const pick = (bi) => {
+    if (answered) return;
+    answered = true;
+    const it = order[i];
+    const ok = bi === it.answer;
+    if (ok) { score++; combo++; bestCombo = Math.max(bestCombo, combo); } else combo = 0;
+    btns.querySelectorAll('.sg-bucket').forEach((b, k) => { b.disabled = true; b.classList.toggle('is-correct', k === it.answer); b.classList.toggle('is-wrong', !ok && k === bi); });
+    card.classList.remove('pop-good', 'pop-bad'); void card.offsetWidth; card.classList.add(ok ? 'pop-good' : 'pop-bad');
+    renderHud();
+    feedback.replaceChildren(h(`p.${ok ? 'good' : 'bad'}`, h('strong', ok ? (combo >= 3 ? `Combo ×${combo}! ` : 'Correct! ') : `Not quite — it's ${buckets[it.answer].name}. `), it.why),
+      h('button.btn.btn-small.btn-primary.clickable', { type: 'button', onclick: () => { i++; show(); } }, i + 1 >= order.length ? 'See score' : 'Next', icon('arrow', 16)));
+    feedback.querySelector('button').focus();
+  };
+  start();
+  return h('div.sort-game', h('div.sg-head', h('span.visual-kicker', icon('star', 14), 'Mini-game'), h('strong', title)), hud, card, btns, feedback);
+}
+
+// ---------------------------------------------------------------- aiFamily
+const FAMILY = [
+  { id: 'ai', name: 'Artificial intelligence', r: 112, text: 'Any computer system doing a task that normally needs human smarts — by rules or by learning.', ex: ['Chess computers', 'Sat-nav route finding', 'Game characters'] },
+  { id: 'ml', name: 'Machine learning', r: 84, text: 'AI that learns patterns from examples instead of hand-written rules. Mostly predicts or sorts.', ex: ['Spam filters', 'Netflix suggestions', 'Fraud alerts'] },
+  { id: 'dl', name: 'Deep learning', r: 57, text: 'ML with many-layered neural networks. Great at photos, speech and language.', ex: ['Face unlock', 'Voice assistants', 'Photo search'] },
+  { id: 'gen', name: 'Generative AI', r: 31, text: 'Deep learning that creates brand-new content: text, images, music, code.', ex: ['ChatGPT & Claude', 'Image generators', 'AI code helpers'] },
+];
+function aiFamily(caption) {
+  let sel = 'gen';
+  const info = h('div.fam-info', { 'aria-live': 'polite' });
+  const svg = s('svg', { viewBox: '0 0 300 236', class: 'fam-svg', role: 'group', 'aria-label': 'Nested circles: AI contains machine learning, which contains deep learning, which contains generative AI' });
+  const rings = FAMILY.map((f, k) => {
+    const cy = 230 - f.r;
+    const g = s('g', { class: `fam-ring fr-${k} clickable`, tabindex: 0, role: 'button', 'aria-label': f.name },
+      s('circle', { cx: 150, cy, r: f.r }),
+      s('text', { x: 150, y: f.id === 'gen' ? cy + 4 : cy - f.r + 17, 'text-anchor': 'middle' }, f.id === 'ai' ? 'AI' : f.id === 'ml' ? 'Machine learning' : f.id === 'dl' ? 'Deep learning' : 'GenAI'));
+    const choose = (e) => { e.stopPropagation(); sel = f.id; render(); };
+    g.addEventListener('click', choose);
+    g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(e); } });
+    svg.append(g);
+    return g;
+  });
+  const render = () => {
+    const f = FAMILY.find((x) => x.id === sel);
+    rings.forEach((g, k) => g.classList.toggle('is-sel', FAMILY[k].id === sel));
+    info.replaceChildren(h('span.fam-tag', `Ring ${FAMILY.indexOf(f) + 1} of 4`), h('h4', f.name), h('p', f.text), h('div.fam-ex', f.ex.map((x) => h('span.chip.static', x))));
+  };
+  render();
+  const game = sortGame('aiFamily', 'Sort the apps', [
+    { name: 'Rule-based AI', icon: 'settings' }, { name: 'Machine learning', icon: 'chart' }, { name: 'Generative AI', icon: 'spark' },
+  ], [
+    { text: 'A thermostat switches the heating on below 18°C', answer: 0, why: 'A fixed rule written by a person — nothing is learned.' },
+    { text: 'Your bank flags an unusual card payment', answer: 1, why: 'It learned what “normal” spending looks like and predicts fraud.' },
+    { text: 'Netflix suggests your next show', answer: 1, why: 'It predicts what you will like from viewing patterns.' },
+    { text: 'An app writes a birthday poem for your mum', answer: 2, why: 'It creates brand-new text — generative AI.' },
+    { text: 'A tool turns “a cat astronaut” into a picture', answer: 2, why: 'It generates a new image from a description.' },
+    { text: 'A 1990s chess program using hand-coded strategies', answer: 0, why: 'Clever, but every strategy was written by people as rules.' },
+    { text: 'Your phone unlocks by recognising your face', answer: 1, why: 'Deep learning (a kind of ML) recognises — it does not create.' },
+  ], 6);
+  return frame('aiFamily', 'The AI family tree', caption, h('div.fam-wrap', svg, info), game);
+}
+
+// ---------------------------------------------------------------- aiCompare
+const AC_KINDS = [
+  { id: 'pred', name: 'Predictive AI', verb: 'Predicts', icon: 'chart' },
+  { id: 'gen', name: 'Generative AI', verb: 'Creates', icon: 'spark' },
+  { id: 'agent', name: 'Agentic AI', verb: 'Acts', icon: 'wrench' },
+];
+const AC_TASKS = [
+  {
+    name: 'Sort out dinner on Friday',
+    out: { pred: 'Ranks restaurants for you: Luigi’s 92% match · Sakura 81% · Taco Hut 64%', gen: 'Writes: “Hey all! Fancy Italian at Luigi’s this Friday at 7? 🍝”', agent: 'Checks calendars → books Luigi’s at 19:00 → sends the invites' },
+    trace: [
+      ['goal', 'Goal: dinner for 4 people on Friday'],
+      ['think', 'Think: first I need a time when everyone is free'],
+      ['act', 'Act: calendar.find_free_time("Friday")'],
+      ['observe', 'Observe: everyone is free at 19:00'],
+      ['think', 'Think: find an Italian place with a table for 4 at 19:00'],
+      ['act', 'Act: restaurants.search("italian", 4, "19:00")'],
+      ['observe', 'Observe: Luigi’s has a table — needs a €10 deposit'],
+      ['think', 'Think: that spends money, so ask the human first'],
+      ['act', 'Act: ask_human("Book Luigi’s for a €10 deposit?") → “Yes”'],
+      ['done', 'Done: table booked and 3 invites sent ✅'],
+    ],
+  },
+  {
+    name: 'Handle a refund email',
+    out: { pred: 'Labels it: “Refund request” · 94% confident · priority High', gen: 'Drafts a reply: “So sorry your mug arrived broken! …”', agent: 'Finds the order → checks the policy → issues the refund → replies' },
+    trace: [
+      ['goal', 'Goal: resolve this customer’s refund email'],
+      ['think', 'Think: which order is this about?'],
+      ['act', 'Act: orders.lookup(email="sam@example.com")'],
+      ['observe', 'Observe: order #4411, mug, delivered 3 days ago'],
+      ['think', 'Think: is it inside the 30-day refund policy?'],
+      ['act', 'Act: policy.check("refund", days=3)'],
+      ['observe', 'Observe: eligible, under the €50 auto-approve limit'],
+      ['act', 'Act: payments.refund(order=4411)'],
+      ['done', 'Done: refund issued and a friendly reply sent ✅'],
+    ],
+  },
+];
+const LOOP_NODES = { goal: [50, 95, 'Goal'], think: [160, 32, 'Think'], act: [262, 95, 'Act'], observe: [160, 158, 'Observe'], done: [262, 175, 'Done'] };
+function aiCompare(caption) {
+  let task = AC_TASKS[0], step = -1;
+  const sel = h('select', { 'aria-label': 'Choose a task' }, AC_TASKS.map((t, i) => h('option', { value: i }, t.name)));
+  const cards = h('div.ac-cards');
+  const log = h('ol.ac-log', { 'aria-live': 'polite' });
+  const svg = s('svg', { viewBox: '0 0 310 200', class: 'loop-svg', 'aria-hidden': 'true' });
+  const arrow = (x1, y1, x2, y2) => s('line', { x1, y1, x2, y2, class: 'loop-edge', 'marker-end': 'url(#loopArrow)' });
+  svg.append(
+    s('defs', {}, s('marker', { id: 'loopArrow', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, s('path', { d: 'M0 0L10 5L0 10z', class: 'loop-head' }))),
+    arrow(84, 86, 126, 46), arrow(196, 42, 236, 80), arrow(240, 112, 196, 150), arrow(126, 150, 150, 58), arrow(262, 117, 262, 152));
+  const nodeEls = {};
+  for (const [k, [x, y, label]] of Object.entries(LOOP_NODES)) {
+    nodeEls[k] = s('g', { class: `loop-node ln-${k}` }, s('circle', { cx: x, cy: y, r: k === 'done' ? 20 : 28 }), s('text', { x, y: y + 4, 'text-anchor': 'middle' }, label));
+    svg.append(nodeEls[k]);
+  }
+  const nextBtn = h('button.btn.btn-small.btn-primary', { type: 'button', onclick: () => { if (step < task.trace.length - 1) { step++; render(); } } }, icon('play', 16), 'Next step');
+  const resetBtn = h('button.btn.btn-small.btn-ghost', { type: 'button', onclick: () => { step = -1; render(); } }, icon('reset', 16), 'Restart');
+  const render = () => {
+    cards.replaceChildren(...AC_KINDS.map((k) => h(`div.ac-card.ac-${k.id}`, h('div.ac-top', h('span.ac-ic', icon(k.icon, 18)), h('div', h('strong', k.name), h('span.small', k.verb))), h('p', task.out[k.id]))));
+    const cur = task.trace[step];
+    Object.entries(nodeEls).forEach(([k, el]) => el.classList.toggle('is-on', cur?.[0] === k));
+    log.replaceChildren(...task.trace.slice(0, step + 1).map(([k, t], i) => h(`li.lg-${k}${i === step ? '.now' : ''}`, t)));
+    if (step < 0) log.replaceChildren(h('li.muted', 'Press “Next step” to run the agent.'));
+    nextBtn.disabled = step >= task.trace.length - 1;
+    if (step === task.trace.length - 1) arcadeWin('aiCompare', 'game', 'Mini-game won: ran an agent loop');
+    log.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
+  };
+  sel.addEventListener('change', () => { task = AC_TASKS[sel.value]; step = -1; render(); });
+  render();
+  const game = sortGame('aiCompareSort', 'Predict, create or act?', [
+    { name: 'Predictive AI', icon: 'chart' }, { name: 'Generative AI', icon: 'spark' }, { name: 'Agentic AI', icon: 'wrench' },
+  ], [
+    { text: 'Writes a cover letter when you ask for one', answer: 1, why: 'It creates text and stops — generative.' },
+    { text: 'Finds 5 jobs, tailors your CV for each and submits the applications', answer: 2, why: 'Several steps, using tools, towards a goal — agentic.' },
+    { text: 'Predicts whether a customer will cancel their subscription', answer: 0, why: 'It outputs a prediction (a score), nothing new is created.' },
+    { text: 'Draws a logo from a short description', answer: 1, why: 'A new image is generated — generative.' },
+    { text: 'Every Friday reads your inbox, saves receipts to a spreadsheet and emails you a summary', answer: 2, why: 'It acts on its own with tools (inbox, spreadsheet, email) — agentic.' },
+    { text: 'Scores how risky a loan application is', answer: 0, why: 'A risk score is a prediction — predictive AI.' },
+    { text: 'Books a meeting after checking everyone’s calendar', answer: 2, why: 'It takes actions with a calendar tool — agentic.' },
+  ], 6);
+  return frame('aiCompare', 'Predict vs create vs act', caption,
+    h('div.vis-controls', h('label', 'Task ', sel)),
+    cards,
+    h('div.ac-loop', h('div.ac-loop-art', h('span.small.muted', 'The agent loop'), svg), h('div.ac-loop-run', log, h('div.vis-actions', nextBtn, resetBtn))),
+    game);
+}
+
+const REGISTRY = { promptFlow, tokens, trainInfer, gradient, nnLayers, attention, embeddings, vectorSearch, ragPipeline, toolCalling, structuredOutput, evalCheck, streaming, aiFamily, aiCompare };
 
 export function renderVisual(key, caption) {
   const fn = REGISTRY[key];

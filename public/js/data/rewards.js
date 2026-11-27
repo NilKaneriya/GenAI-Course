@@ -9,6 +9,8 @@ export const XP = {
   boss: 250,           // boss challenge beaten
   project: 400,        // capstone project plan submitted
   quest: 20,           // optional daily quest
+  cards: 15,           // flashcard deck mastered in a lesson (once per lesson)
+  game: 20,            // lesson mini-game won (once per game)
 };
 
 // Learner ranks — reach the XP threshold to earn the rank.
@@ -41,6 +43,8 @@ export const BADGES = [
   { id: 'quest-keeper', name: 'Quest Keeper', desc: 'Finished five optional daily quests.', rule: 'quests>=5', icon: 'compass' },
   { id: 'curious', name: 'Curious Mind', desc: 'Asked the mentor five questions.', rule: 'mentor>=5', icon: 'chat' },
   { id: 'challenger', name: 'Challenger', desc: 'Passed five coding challenges.', rule: 'challenges>=5', icon: 'trophy' },
+  { id: 'card-shark', name: 'Card Shark', desc: 'Mastered the flashcards in five lessons.', rule: 'cards>=5', icon: 'layers' },
+  { id: 'arcade', name: 'Arcade Ace', desc: 'Won two lesson mini-games.', rule: 'games>=2', icon: 'star' },
   { id: 'job-ready', name: 'Job Ready', desc: 'Completed the Launch Summit capstone.', rule: 'level:l10', icon: 'rocket' },
 ];
 
@@ -51,5 +55,6 @@ export const QUEST_POOL = [
   { id: 'q-code', text: 'Run code in the playground', metric: 'runs', target: 1 },
   { id: 'q-mentor', text: 'Ask the mentor a question', metric: 'mentor', target: 1 },
   { id: 'q-review', text: 'Revisit a lesson you already finished', metric: 'reviews', target: 1 },
+  { id: 'q-cards', text: 'Master a flashcard deck', metric: 'cards', target: 1 },
   { id: 'q-visual', text: 'Experiment with an interactive visual', metric: 'visuals', target: 1 },
 ];

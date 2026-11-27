@@ -28,7 +28,7 @@ export function buildSampleState(s) {
   };
 
   // Level 1 lessons, spread across the week. One short-answer question needed a second try.
-  const l1Days = [6, 5, 5, 4];
+  const l1Days = [7, 7, 6, 5, 5, 4];
   l1.missions.forEach((m, i) => {
     const d = l1Days[i];
     m.check.forEach((q, qi) => practice(q, i === 1 && qi === 1 ? [false, true] : i === 2 && qi === 0 ? [false, true] : [true], d));

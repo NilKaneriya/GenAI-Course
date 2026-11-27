@@ -1,6 +1,6 @@
 // Validates every curriculum level against docs/CONTENT_SCHEMA.md and the app grading rules. Run: npm run check
 const root = new URL('../public/js/', import.meta.url).href;
-const VIS = ['promptFlow', 'tokens', 'trainInfer', 'gradient', 'nnLayers', 'attention', 'embeddings', 'vectorSearch', 'ragPipeline', 'toolCalling', 'structuredOutput', 'evalCheck', 'streaming'];
+const VIS = ['promptFlow', 'tokens', 'trainInfer', 'gradient', 'nnLayers', 'attention', 'embeddings', 'vectorSearch', 'ragPipeline', 'toolCalling', 'structuredOutput', 'evalCheck', 'streaming', 'aiFamily', 'aiCompare'];
 const SK = ['foundations', 'python', 'ml', 'deep-learning', 'llms', 'prompting', 'structured-output', 'apis', 'embeddings', 'rag', 'tools', 'evaluation', 'safety', 'deployment', 'career'];
 const norm = (t) => String(t || '').toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ');
 const gradeShort = (q, r) => { const text = norm(r); const w = text.split(' ').filter(Boolean).length; const m = q.keywords.filter((g) => g.some((k) => text.includes(norm(k)))).length; return w >= 3 && m >= q.min; };

@@ -146,7 +146,7 @@ function celebrate(events) {
 function boot() {
   store.init();
   buildShell();
-  initMentor({ getContext: () => ({ route: current?.hash, challengeId: (current?.hash.match(/^#\/playground\/(c-[\w-]+)/) || [])[1] || null }) });
+  initMentor({ getContext: () => ({ route: current?.hash, challengeId: (current?.hash.match(/^#\/playground\/(c-[\w-]+)/) || [])[1] || null, missionId: (current?.hash.match(/^#\/lesson\/(l\d+m\d+)/) || [])[1] || null }) });
   store.onEvent(celebrate);
   store.subscribe(() => updateTopbar());
   window.addEventListener('hashchange', onHashChange);

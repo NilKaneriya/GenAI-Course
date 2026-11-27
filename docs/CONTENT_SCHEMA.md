@@ -45,6 +45,8 @@ tools, evaluation, safety, deployment, career`
   skill: 'foundations',           // one skill id
   visual: 'promptFlow',           // optional interactive visual key (see list), or null
   visualCaption: 'Short instruction telling the learner what to try in the visual.',
+  keyIdea: 'Optional. One-sentence "big idea" shown first in the lesson (markdown-lite). Falls back to `goal`.',
+  analogy: 'Optional. Everyday analogy shown by the mentor coach and used by the simulated mentor.',
   sections: [                     // 2–4 short sections. Keep each body under ~120 words.
     { h: 'Heading', body: 'Markdown-lite text' }
   ],
@@ -84,6 +86,16 @@ tools, evaluation, safety, deployment, career`
 | `structuredOutput` | free text vs JSON-schema-validated output |
 | `evalCheck` | answer vs source documents, supported/unsupported claim highlighting |
 | `streaming` | token-by-token streaming vs waiting for full response, latency numbers |
+| `aiFamily` | nested AI ⊃ ML ⊃ deep learning ⊃ GenAI rings + "sort the apps" mini-game |
+| `aiCompare` | predictive vs generative vs agentic on one task, step-through agent loop, sorting mini-game |
+
+### How a lesson is presented
+
+Every mission is played as stages, built automatically from the data above (`components/learnKit.js`):
+**Big picture** (`keyIdea` + `visual` + a concept map of `terms`) → **Flashcards** (`terms`) →
+**Story** (`sections` as slides, with a "Read it all" docs mode, then `example`) → **Quiz** (`check`).
+Keep `terms` to 2–6 short definitions: they become both the flashcards and the concept map. Lessons earn up
+to 3 stars (flashcards mastered, practice right first time, lesson complete); mini-games award XP once.
 
 ## Question
 

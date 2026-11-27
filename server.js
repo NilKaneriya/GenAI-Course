@@ -36,7 +36,7 @@ const MODEL = process.env.AI_MODEL || (PROVIDER === 'anthropic' ? 'claude-sonnet
 const BASE_URL = (process.env.AI_BASE_URL || '').replace(/\/$/, '');
 const CONFIGURED = Boolean(PROVIDER && API_KEY && MODEL && (PROVIDER !== 'openai-compatible' || BASE_URL));
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.md': 'text/markdown; charset=utf-8' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.md': 'text/markdown; charset=utf-8', '.webmanifest': 'application/manifest+json' };
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
