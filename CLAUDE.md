@@ -22,3 +22,7 @@ Plain ES modules, no bundler. `server.js` is a static file server for `public/` 
 ### Mentor chatbot (two paths)
 
 `mentor.js` has a rule-based simulated mentor (default) and a client for `POST /api/mentor`. `server.js` enables the proxy only when `AI_PROVIDER` is set (`anthropic` or `openai-compatible`; config via `.env`, see `.env.example`), builds the system prompt from the learner's progress JSON, and falls back to the simulated mentor on failure. New providers go in `callProvider()`; the client contract is `{ message, history, progress, page }` → `{ reply }`. Mentor links must use the form `[label](#/route)`.
+
+### Accounts and cloud progress
+
+`lib/accounts.js` holds framework-free handlers (`handle(route, …)`) for signup, login, me and progress; `server.js` routes `/api/auth/*` and `/api/progress` to them locally (JSON file store in `.data/`), and the files in `api/` expose the same handlers as Vercel functions (Upstash Redis via `KV_REST_API_URL`/`KV_REST_API_TOKEN`, plus `AUTH_SECRET`). In the browser, `account.js` is the API client/session, `sync.js` reconciles local state with the server (newer `savedAt` wins) and pushes after every `persist()` via `store.setPersistHook`. `views/login.js` is the full-screen login route (`#/login`, `bare: true` hides the shell). Reward overlays and the flying XP live in `components/celebrate.js`; the lesson's right column is `components/sidePanel.js`.

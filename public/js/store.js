@@ -36,8 +36,13 @@ export function emptyState() {
 function loadRaw() {
   try { return JSON.parse(localStorage.getItem(CONFIG.storageKey)); } catch { return null; }
 }
+let persistHook = null;
+/** Called after every local save (used for cloud sync when signed in). */
+export const setPersistHook = (fn) => { persistHook = fn; };
 function persist() {
+  state.savedAt = new Date().toISOString();
   try { localStorage.setItem(CONFIG.storageKey, JSON.stringify(state)); } catch (e) { console.warn('Could not save progress', e); }
+  persistHook?.(state);
 }
 
 export function init() {

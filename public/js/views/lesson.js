@@ -6,6 +6,7 @@ import { questionCard } from '../components/question.js';
 import { renderVisual } from '../components/visuals.js';
 import { keyIdeaCard, conceptMap, flashDeck, storySlides, mentorCoach, starRow } from '../components/learnKit.js';
 import { openMentor } from './mentorPanel.js';
+import { lessonSide } from '../components/sidePanel.js';
 import { lockedPage } from './level.js';
 
 // A lesson is played as four stages: see the big picture → flip the flashcards → read the story in
@@ -112,5 +113,5 @@ export function renderLesson([mid]) {
         stage('quiz', cardsStage ? 4 : 3, 'Quiz', 'Instant feedback, unlimited retries. Right on the first try = a star.',
           h('section.practice', checks),
           completeArea)),
-      mentorCoach(m)));
+      h('aside.lesson-side', { 'aria-label': 'Lesson helpers' }, mentorCoach(m), lessonSide(m, level))));
 }

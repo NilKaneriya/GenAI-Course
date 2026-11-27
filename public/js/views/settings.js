@@ -2,6 +2,23 @@ import { h, icon, toast, modal } from '../ui.js';
 import * as store from '../store.js';
 import { CONFIG } from '../data/config.js';
 import { detectBackend } from '../mentor.js';
+import * as acc from '../account.js';
+import { signOutAndClear } from '../sync.js';
+
+function accountCard() {
+  const a = acc.getAccount();
+  if (!a.signedIn) {
+    return h('section.card.account-card', h('h2', icon('user', 18), 'Account'),
+      h('p.small.muted', 'You are learning as a guest. Progress is saved in this browser only.'),
+      h('a.btn.btn-primary', { href: '#/login' }, icon('shield', 16), 'Sign in or create an account'));
+  }
+  return h('section.card.account-card', h('h2', icon('user', 18), 'Account'),
+    h('p', h('strong', a.name), h('br'), h('span.small.muted', a.email)),
+    h('p.small.muted', 'Progress saves to your account automatically a moment after every change, so you can continue on any device.'),
+    h('div.hero-actions',
+      h('button.btn.btn-ghost', { onclick: async () => { await acc.pushProgress(store.getState()); toast(acc.getAccount().sync === 'saved' ? 'Progress saved to your account' : 'Could not reach the server — will retry', { iconName: acc.getAccount().sync === 'saved' ? 'check' : 'alert' }); } }, icon('upload', 16), 'Save now'),
+      h('button.btn.btn-ghost', { onclick: () => modal({ title: 'Sign out?', body: 'Your progress stays saved in your account. This browser’s copy is cleared, so the next person starts fresh.', actions: [{ label: 'Sign out', onClick: () => { signOutAndClear(); location.hash = '#/login'; } }, { label: 'Cancel', autofocus: true }] }) }, icon('back', 16), 'Sign out')));
+}
 
 export function renderSettings(_, { refresh }) {
   const s = store.getState();
@@ -22,6 +39,7 @@ export function renderSettings(_, { refresh }) {
   return h('section.page.settings', { 'data-title': 'Settings' },
     h('header.page-head', h('p.kicker', 'Settings'), h('h1', 'Settings and data')),
     h('div.settings-grid',
+      accountCard(),
       h('section.card', h('h2', 'Profile'),
         h('div.field', h('label', { for: 'set-name' }, 'Display name'), nameIn),
         h('button.btn.btn-primary', { onclick: () => { store.setName(nameIn.value.trim() || 'Learner'); toast('Name saved', { iconName: 'check' }); } }, 'Save name')),

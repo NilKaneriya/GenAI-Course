@@ -25,7 +25,23 @@ The app is a static site in `public/`, so it deploys to Vercel as-is (`vercel.js
 `npm run check` as the build, so broken content fails the deploy). Either import the GitHub repo at
 vercel.com/new, or run `npx vercel --prod` after `npx vercel login`. On Vercel the mentor runs in
 simulated mode (the `/api/mentor` proxy lives in `server.js`, which Vercel does not run). On a phone, use
-**Add to Home Screen** to install it like an app; progress is saved per browser.
+**Add to Home Screen** to install it like an app.
+
+## Accounts (email + password, progress synced across devices)
+
+Learners can sign in on the login page (`#/login`) or continue as a guest (progress stays in that browser).
+Signed-in progress is saved to the account a moment after every change and loaded on any device.
+
+- **Locally** accounts work with no setup: `npm start` stores them in `./.data` (git-ignored).
+- **On Vercel** the same handlers run as functions in `api/` (shared code in `lib/accounts.js`). Turn them on once:
+  1. Vercel project → **Storage** → add **Upstash for Redis** (free tier) and connect it to the project
+     (this sets `KV_REST_API_URL` / `KV_REST_API_TOKEN`).
+  2. Project → **Settings → Environment Variables** → add `AUTH_SECRET` = a long random string
+     (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+  3. Redeploy. Until both are set, the site runs in guest mode and the login page says accounts are off.
+
+Passwords are hashed with scrypt and a per-user salt; sessions are HMAC-signed tokens; repeated wrong
+passwords lock that email for 15 minutes.
 
 ## What's live and what's simulated
 

@@ -99,7 +99,7 @@
 .example-drop[open] { padding-bottom: 1rem; }
 
 /* mentor coach */
-.coach { position: sticky; top: 84px; display: grid; gap: .8rem; padding: 1rem; border-radius: 20px; background: linear-gradient(180deg, var(--primary-tint), var(--surface) 60%); border: 1.5px solid color-mix(in srgb, var(--primary) 30%, var(--line)); min-width: 0; }
+.coach { display: grid; gap: .8rem; padding: 1rem; border-radius: 20px; background: linear-gradient(180deg, var(--primary-tint), var(--surface) 60%); border: 1.5px solid color-mix(in srgb, var(--primary) 30%, var(--line)); min-width: 0; }
 .coach-head { display: flex; gap: .65rem; align-items: center; }
 .coach-head strong { display: block; color: var(--ink); }
 .coach-bubble { position: relative; padding: .75rem .85rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
@@ -200,7 +200,9 @@
 
 /* The lesson grid collapses to one column at 1180px (styles.css): put the mentor coach above the stages. */
 @media (max-width: 1180px) {
-  .coach { position: static; order: -1; }
+  .lesson-side { display: contents; }
+  .coach { order: -1; }
+  .side-stack { order: 1; }
 }
 @media (max-width: 900px) {
   .stage-nav { top: 56px; }

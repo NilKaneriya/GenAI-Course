@@ -291,6 +291,27 @@ export function earnedBadgeIds(s) {
   }).map((b) => b.id);
 }
 
+/** Progress toward every badge: { badge, earned, cur, target, pct, hint }. Used for "badge to chase" cards. */
+export function badgeProgress(s) {
+  const c = courseCompletion(s);
+  const arcade = Object.keys(s.arcade || {});
+  const ctx = {
+    lessons: c.lessons, challenges: allChallenges().filter((x) => challengePassed(s, x.id)).length, bosses: LEVELS.filter((l) => bossWon(s, l.id)).length,
+    levels: c.levelsCleared, quests: s.questsCompleted || 0, mentor: s.mentor.asked || 0,
+    cards: arcade.filter((k) => k.endsWith(':cards')).length, games: arcade.filter((k) => k.endsWith(':game')).length,
+  };
+  const HINT = { lessons: 'lessons', challenges: 'coding challenges', bosses: 'bosses', levels: 'levels cleared', quests: 'daily quests', mentor: 'mentor questions', cards: 'flashcard decks', games: 'mini-games won' };
+  return BADGES.map((b) => {
+    const earned = Boolean(s.badges[b.id]);
+    let cur = 0, target = 1, hint = '';
+    if (b.rule.startsWith('level:')) { const l = getLevel(b.rule.slice(6)); cur = levelProgressPct(s, l); target = 100; hint = `Level ${l.num} ${cur}% cleared`; }
+    else if (b.rule === 'comeback' || b.rule === 'perfect') { cur = earned ? 1 : 0; hint = b.rule === 'perfect' ? 'Score 100% on a level test' : 'Pass a test after a failed try'; }
+    else { const [k, v] = b.rule.split('>='); cur = Math.min(ctx[k] || 0, Number(v)); target = Number(v); hint = `${cur}/${target} ${HINT[k] || k}`; }
+    if (earned) cur = target;
+    return { badge: b, earned, cur, target, pct: Math.round((cur / target) * 100), hint };
+  });
+}
+
 // ---------- history for charts ----------
 export function xpByDay(s, days = 14) {
   const out = [];

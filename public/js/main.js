@@ -1,7 +1,13 @@
 // App shell: router, navigation, top bar, reward celebrations.
 import * as store from './store.js';
 import * as P from './progression.js';
-import { h, icon, toast, modal, confetti, progressBar } from './ui.js';
+import { h, icon, toast, modal, progressBar } from './ui.js';
+import { brandMark } from './brand.js';
+import * as acc from './account.js';
+import { startSync, signOutAndClear } from './sync.js';
+import { xpBurst, countUp, celebrateBig } from './components/celebrate.js';
+import { BADGES } from './data/rewards.js';
+import { renderLogin } from './views/login.js';
 import { openMentor, initMentor } from './views/mentorPanel.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderMap } from './views/map.js';
@@ -23,6 +29,7 @@ const ROUTES = [
   { re: /^#\/playground(?:\/([\w-]+))?$/, view: renderPlayground, nav: 'playground', title: 'Playground' },
   { re: /^#\/report$/, view: renderReport, nav: 'report', title: 'Progress report' },
   { re: /^#\/settings$/, view: renderSettings, nav: 'settings', title: 'Settings' },
+  { re: /^#\/login$/, view: renderLogin, nav: null, title: 'Sign in', bare: true },
 ];
 
 const NAV = [
@@ -34,6 +41,7 @@ const NAV = [
 ];
 
 let current = null;
+let shownXP = null;
 const main = () => document.getElementById('main');
 
 function resolve(hash) {
@@ -48,6 +56,7 @@ function render({ scroll = true } = {}) {
   if (!found) { main().replaceChildren(notFound()); return; }
   const { route, params } = found;
   const el = route.view(params, { refresh: () => render({ scroll: false }) });
+  document.body.classList.toggle('auth-mode', Boolean(route.bare));
   main().replaceChildren(el);
   document.title = `${el.dataset.title || route.title} · GenAI Quest`;
   updateNav(route.nav);
@@ -72,9 +81,11 @@ function buildShell() {
     h('a.brand', { href: '#/dashboard' }, brandMark(), h('span', h('strong', 'GenAI Quest'), h('small', 'Beginner → job-ready'))),
     h('ul.nav-list', NAV.map((n) => h('li', h('a.nav-link', { href: n.href, 'data-nav': n.id }, icon(n.icon, 20), h('span', n.label))))),
     h('button.nav-mentor', { onclick: () => openMentor(), 'aria-label': 'Open the AI mentor chat' }, icon('chat', 20), h('span', 'Ask the mentor')),
+    h('div.sidebar-account#sidebar-account'),
     h('div.sidebar-foot#sidebar-rank'));
   const topbar = h('header.topbar',
     h('div.topbar-stats#topbar-stats'),
+    h('div.topbar-account#topbar-account'),
     h('button.btn.btn-mentor', { onclick: () => openMentor(), 'aria-label': 'Open the AI mentor chat' }, icon('chat', 18), h('span', 'Mentor')));
   const tabbar = h('nav.tabbar', { 'aria-label': 'Main navigation' }, NAV.filter((n) => n.id !== 'settings').map((n) => h('a.tab-link', { href: n.href, 'data-nav': n.id }, icon(n.icon, 22), h('span', n.label))),
     h('button.tab-link', { onclick: () => openMentor() }, icon('chat', 22), h('span', 'Mentor')));
@@ -85,12 +96,29 @@ function buildShell() {
     tabbar);
 }
 
-export function brandMark(size = 34) {
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 40 40'); svg.setAttribute('width', size); svg.setAttribute('height', size); svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = '<rect x="2" y="2" width="36" height="36" rx="11" fill="var(--primary)"/><path d="M12 26c3-9 5-13 8-13s5 4 8 13" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="26" r="2.6" fill="var(--accent)"/><circle cx="20" cy="13" r="2.6" fill="#fff"/><circle cx="28" cy="26" r="2.6" fill="var(--gold)"/>';
-  return svg;
+export { brandMark };
+
+// ---------- account (sidebar box + top-bar avatar) ----------
+const SYNC_LABEL = { idle: ['check', 'Synced to your account'], saved: ['check', 'Saved to your account'], saving: ['upload', 'Saving…'], offline: ['alert', 'Offline — will sync later'], error: ['alert', 'Not synced — will retry'] };
+function renderAccount() {
+  const a = acc.getAccount();
+  const box = document.getElementById('sidebar-account');
+  const top = document.getElementById('topbar-account');
+  if (!box || !top) return;
+  const initial = (a.name || a.email || 'G').trim()[0].toUpperCase();
+  if (a.signedIn) {
+    const [ic, label] = SYNC_LABEL[a.sync] || SYNC_LABEL.idle;
+    box.replaceChildren(
+      h('div.acct-row', h('span.acct-avatar', initial), h('div.acct-id', h('strong', a.name || 'Learner'), h('span', a.email))),
+      h(`p.acct-sync.sync-${a.sync}`, icon(ic, 14), label),
+      h('button.btn.btn-small.acct-out', { type: 'button', onclick: () => modal({ title: 'Sign out?', body: 'Your progress stays saved in your account. This browser’s copy is cleared, so the next person starts fresh.', actions: [{ label: 'Sign out', onClick: () => { signOutAndClear(); location.hash = '#/login'; } }, { label: 'Cancel', autofocus: true }] }) }, icon('back', 14), 'Sign out'));
+    top.replaceChildren(h('a.acct-avatar.small', { href: '#/settings', title: `${a.name} · ${label}`, 'aria-label': `Account: ${a.email}` }, initial, h(`i.sync-dot.sync-${a.sync}`)));
+  } else {
+    box.replaceChildren(
+      h('p.acct-guest', icon('user', 16), h('span', h('strong', 'Guest mode'), h('small', 'Progress saved on this device only'))),
+      h('a.btn.btn-small.btn-primary.acct-cta', { href: '#/login' }, icon('shield', 14), 'Save progress: sign in'));
+    top.replaceChildren(h('a.btn.btn-small.btn-ghost.topbar-login', { href: '#/login', 'aria-label': 'Sign in to save your progress' }, icon('user', 16), h('span', 'Sign in')));
+  }
 }
 
 function updateNav(active) {
@@ -107,9 +135,12 @@ function updateTopbar() {
   const r = P.rankInfo(xp);
   const st = P.streak(s);
   const lvl = P.currentLevel(s);
+  const xpNum = h('strong.xp-num', xp.toLocaleString());
+  if (shownXP !== null && xp > shownXP) countUp(xpNum, shownXP, xp);
+  shownXP = xp;
   document.getElementById('topbar-stats').replaceChildren(
     h('a.stat-chip', { href: `#/level/${lvl.id}`, title: 'Current level' }, icon('flag', 16), h('span', h('small', 'Level'), h('strong', `${lvl.num} · ${lvl.region}`))),
-    h('a.stat-chip.chip-xp', { href: '#/report', title: 'Total XP' }, icon('bolt', 16), h('span', h('small', 'XP'), h('strong', xp.toLocaleString()))),
+    h('a.stat-chip.chip-xp', { href: '#/report', title: 'Total XP' }, icon('bolt', 16), h('span', h('small', 'XP'), xpNum)),
     h('span.stat-chip.chip-streak', { title: 'One missed day is forgiven; missing days never removes XP.' }, icon('spark', 16), h('span', h('small', 'Streak'), h('strong', `${st.count} day${st.count === 1 ? '' : 's'}`))));
   document.getElementById('sidebar-rank').replaceChildren(
     h('p.rank-name', icon('shield', 16), r.rank.name),
@@ -122,35 +153,40 @@ function celebrate(events) {
   const xp = events.filter((e) => e.type === 'xp');
   if (xp.length) {
     const total = xp.reduce((t, e) => t + e.xp, 0);
+    xpBurst(total, xp.length === 1 ? xp[0].reason : `${xp.length} rewards`);
     toast(`+${total} XP — ${xp.map((e) => e.reason).join(' · ')}`, { kind: 'xp', iconName: 'bolt' });
   }
   for (const e of events) {
-    if (e.type === 'badge') toast(`Badge earned: ${e.badge.name} — ${e.badge.desc}`, { kind: 'badge', iconName: e.badge.icon, timeout: 5000 });
-    if (e.type === 'rank') toast(`Rank up! You are now a ${e.rank.name}.`, { kind: 'rank', iconName: 'shield', timeout: 5000 });
+    if (e.type === 'badge') celebrateBig({ kind: 'badge', icon: e.badge.icon, title: e.badge.name, text: e.badge.desc, sub: `${Object.keys(store.getState().badges).length} of ${BADGES.length} badges collected`, actions: [{ label: 'Awesome!' }, { label: 'See all badges', onClick: () => { location.hash = '#/report'; } }] });
+    if (e.type === 'rank') celebrateBig({ kind: 'rank', icon: 'shield', title: e.rank.name, text: `You reached ${e.rank.xp.toLocaleString()} XP. Keep going to unlock the next rank.` });
   }
   const unlock = events.find((e) => e.type === 'unlock');
   if (unlock) {
-    confetti();
     const l = unlock.level;
-    modal({
-      title: `Region unlocked: ${l.region}`,
-      cls: 'modal-celebrate',
-      body: h('div.celebrate-body', h('div.celebrate-badge', h('span', `Level ${l.num}`)), h('p', h('strong', l.title)), h('p.muted', l.tagline), h('p.small', 'You earned this by passing the required test — not by clicking through. Your map, dashboard and report are updated.')),
-      actions: [{ label: 'Start the first lesson', onClick: () => { location.hash = `#/lesson/${l.missions[0].id}`; } }, { label: 'View the map', onClick: () => { location.hash = '#/map'; } }],
-    });
+    celebrateBig({ kind: 'unlock', icon: 'flag', title: `Level ${l.num}: ${l.region}`, text: l.tagline, sub: 'Earned by passing the required test — not by clicking through.',
+      actions: [{ label: 'Start the first lesson', onClick: () => { location.hash = `#/lesson/${l.missions[0].id}`; } }, { label: 'View the map', onClick: () => { location.hash = '#/map'; } }] });
   }
   updateTopbar();
 }
 
 // ---------- boot ----------
-function boot() {
+async function boot() {
   store.init();
   buildShell();
   initMentor({ getContext: () => ({ route: current?.hash, challengeId: (current?.hash.match(/^#\/playground\/(c-[\w-]+)/) || [])[1] || null, missionId: (current?.hash.match(/^#\/lesson\/(l\d+m\d+)/) || [])[1] || null }) });
   store.onEvent(celebrate);
   store.subscribe(() => updateTopbar());
+  acc.onAccountChange(renderAccount);
+  renderAccount();
   window.addEventListener('hashchange', onHashChange);
+  // First visit with accounts enabled: start on the login page (guests can skip it).
+  const st = await acc.authStatus();
+  renderAccount();
+  if (st.enabled && !acc.getAccount().signedIn && !acc.isGuestChosen() && !location.hash.startsWith('#/login')) {
+    history.replaceState(null, '', '#/login');
+  }
   onHashChange();
+  if (await startSync()) render({ scroll: false });
 }
 
 boot();

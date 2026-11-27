@@ -15,6 +15,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handle, authEnabled } from './lib/accounts.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -136,6 +137,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 502, { error: 'The AI provider request failed.' });
     }
   }
+  // ---- accounts + cloud progress (same handlers as the Vercel functions in /api) ----
+  const acct = url.pathname.match(/^\/api\/(?:auth\/(status|signup|login|me)|(progress))$/);
+  if (acct) {
+    const route = acct[1] || acct[2];
+    if ((route === 'signup' || route === 'login') && rateLimited(`auth:${req.socket.remoteAddress || 'local'}`, 30)) return json(res, 429, { error: 'Too many requests — wait a minute.' });
+    let body = {};
+    if (req.method === 'POST' || req.method === 'PUT') {
+      try { body = JSON.parse((await readBody(req, 1024 * 1024)) || '{}'); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
+    }
+    const out = await handle(route, { method: req.method, body, auth: req.headers.authorization || '' });
+    return send(res, out.status, JSON.stringify(out.body), { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  }
   if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'Not found' });
 
   // ---- static files ----
@@ -154,5 +167,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`GenAI Quest running at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  console.log(authEnabled() ? 'Accounts: enabled (local file store in ./.data)' : 'Accounts: disabled');
   console.log(CONFIGURED ? `Mentor: live AI via ${PROVIDER} (${MODEL})` : 'Mentor: simulated (set AI_PROVIDER and AI_API_KEY to connect a real model)');
 });

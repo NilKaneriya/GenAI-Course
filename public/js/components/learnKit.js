@@ -121,7 +121,7 @@ export function storySlides(m, { onFinish } = {}) {
 export function mentorCoach(m) {
   const take = m.analogy || `In short: ${m.goal}`;
   const ask = (text) => () => openMentor(text);
-  return h('aside.coach', { 'aria-label': 'Your mentor for this lesson' },
+  return h('section.coach', { 'aria-label': 'Your mentor for this lesson' },
     h('div.coach-head', h('div.mentor-avatar', icon('compass', 20)), h('div', h('strong', 'Your mentor'), h('span.small.muted', 'Stuck? I know this lesson.'))),
     h('div.coach-bubble', h('span.coach-k', m.analogy ? 'Mentor’s analogy' : 'Mentor’s take'), h('p', take)),
     h('div.coach-actions',
